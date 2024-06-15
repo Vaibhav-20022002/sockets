@@ -27,7 +27,7 @@ int main() {
     }
     printf("Socket Created Successfully\n");
 
-    // INITIALIZING A SOCKET:
+    // INITIALIZING A SOCKET ADDRESS:
     // STRUCTURE OF IPV4 SOCKET IS 'sockaddr_in', IT IS USED TO GIVE ADDRESS FOR IPV4 SOCKETS
     // IT'S BODY IS DEFINED AS FOLLOWS:
     //      struct sockaddr_in {
@@ -53,7 +53,7 @@ int main() {
     int ret = bind(socketFileDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
     if (ret < 0) {
         perror("Bind failed!\n");
-        // 'close(sock_fd)' RELEASES RESOURCES ASSIGNED TO SOCKET WITH SOCKET_FILE_DESCRIPTOR :
+        // 'close(sock_fd)' SYSTEM CALL RELEASES RESOURCES ASSIGNED TO SOCKET WITH SOCKET_FILE_DESCRIPTOR :
         close(socketFileDescriptor);
         return -1;
     }
