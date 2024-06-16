@@ -96,7 +96,7 @@ int main() {
         close(socketFileDescriptor);
         return -1;
     }
-    printf("SERVER::Client request accepted from%s:%hd\n", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
+    printf("SERVER::Client request accepted from %s:%d\n", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
 
     // 'read()' SYSTEM CALL READS DATA FROM THE GIVEN BUFFER
     // SYNTAX: 'sszie_t read(int sock_fd, void *buffer, size_t len)'
@@ -111,15 +111,15 @@ int main() {
     // SAME IS THE 'write()' SYSTEM CALL
     // SYNTAX: 'sszie_t write(int sock_fd, void *buffer, size_t len)'
     // NOTE: WRITING SAME AS WHAT READ, BECAUSE IT IS A ECHO SERVER !!!
-    write(sessionFileDescriptor, readBuffer, strlen(readBuffer));
+    // ENSURING STRING GETS NULL-TERMINATED CORRECTLY:
+    write(sessionFileDescriptor, readBuffer, strlen(readBuffer) + 1);
     printf("SERVER::Sent data to the client\n");
 
     // COMMUNICATION IS ENDED SO CLOSING THE CURRENT CLIENT(ONE WITH sessionFileDescriptor):
-    printf("SERVER::Closing the connection with client\n");
+    printf("SERVER::Closing the connection with client...\n");
     close(sessionFileDescriptor);
 
-
-    printf("SERVER::Closing the connection\n");
+    printf("SERVER::Closing the server connection...\n");
     close(socketFileDescriptor);
     return 0;
 }
