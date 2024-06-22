@@ -89,36 +89,37 @@ int main() {
     // HERE, 'client' IS THE POINTER TO STORE THE RETURNED SIZE OF addr (clientAddress)
     // RETURNS (small integer) FILE DESCRIPTOR FOR THE CLIENT (KNOWN AS SESSION_FILE_DESCRIPTOR) ON SUCCESS OTHERWISE '-1' ON ERROR
     // NOTE: 'accept()' SYSTEM CALL TAKES THE FIRST CONNECTION OFF THE QUEUE FOR sockfd AND CREATE A NEW SOCKET(NEW SOCKET_FILE_DESCRIPTOR) FOR COMMUNICATING WITH THE CLIENT !!!
-    int sessionFileDescriptor = accept(socketFileDescriptor, (struct sockaddr*) &clientAddress, &len);
-    if (sessionFileDescriptor < 0) {
-        perror("SERVER::Accept for new connection failed\n");
-        printf("SERVER::Closing the connection\n");
-        close(socketFileDescriptor);
-        return -1;
+    while (1) {
+        int sessionFileDescriptor = accept(socketFileDescriptor, (struct sockaddr*) &clientAddress, &len);
+        if (sessionFileDescriptor < 0) {
+            perror("SERVER::Accept for new connection failed\n");
+            printf("SERVER::Closing the connection\n");
+            close(socketFileDescriptor);
+            return -1;
+        }
+        printf("SERVER::Client request accepted from %s:%d\n", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
+
+        // 'read()' SYSTEM CALL READS DATA FROM THE GIVEN BUFFER
+        // SYNTAX: 'sszie_t read(int sock_fd, void *buffer, size_t len)'
+        // HERE, 'sock_fd' IS THE FILE DESCRIPTOR FOR WHERE THE DATA HAS TO BE READ,
+        // HERE, '*buffer' IS THE ACTUAL BYTES WHICH HAS TO BE KEPT AFTER READING,
+        // HERE, 'len' IS THE NUMBER OF BYTES TO BE READ
+        // RETURNS THE NUMBER OF BYTES READ ON SUCCESS(0 INDICATES END OF FILE), '-1' ON ERROR
+        char readBuffer[20];
+        read(sessionFileDescriptor, readBuffer, sizeof(readBuffer));
+        printf("SERVER::Data from client is %s\n", readBuffer);
+
+        // SAME IS THE 'write()' SYSTEM CALL
+        // SYNTAX: 'sszie_t write(int sock_fd, void *buffer, size_t len)'
+        // NOTE: WRITING SAME AS WHAT READ, BECAUSE IT IS A ECHO SERVER !!!
+        // ENSURING STRING GETS NULL-TERMINATED CORRECTLY:
+        write(sessionFileDescriptor, readBuffer, strlen(readBuffer) + 1);
+        printf("SERVER::Sent data to the client\n");
+
+        // COMMUNICATION IS ENDED SO CLOSING THE CURRENT CLIENT(ONE WITH sessionFileDescriptor):
+        printf("SERVER::Closing the connection with client...\n");
+        close(sessionFileDescriptor);
     }
-    printf("SERVER::Client request accepted from %s:%d\n", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
-
-    // 'read()' SYSTEM CALL READS DATA FROM THE GIVEN BUFFER
-    // SYNTAX: 'sszie_t read(int sock_fd, void *buffer, size_t len)'
-    // HERE, 'sock_fd' IS THE FILE DESCRIPTOR FOR WHERE THE DATA HAS TO BE READ,
-    // HERE, '*buffer' IS THE ACTUAL BYTES WHICH HAS TO BE KEPT AFTER READING,
-    // HERE, 'len' IS THE NUMBER OF BYTES TO BE READ
-    // RETURNS THE NUMBER OF BYTES READ ON SUCCESS(0 INDICATES END OF FILE), '-1' ON ERROR
-    char readBuffer[20];
-    read(sessionFileDescriptor, readBuffer, sizeof(readBuffer));
-    printf("SERVER::Data from client is %s\n", readBuffer);
-
-    // SAME IS THE 'write()' SYSTEM CALL
-    // SYNTAX: 'sszie_t write(int sock_fd, void *buffer, size_t len)'
-    // NOTE: WRITING SAME AS WHAT READ, BECAUSE IT IS A ECHO SERVER !!!
-    // ENSURING STRING GETS NULL-TERMINATED CORRECTLY:
-    write(sessionFileDescriptor, readBuffer, strlen(readBuffer) + 1);
-    printf("SERVER::Sent data to the client\n");
-
-    // COMMUNICATION IS ENDED SO CLOSING THE CURRENT CLIENT(ONE WITH sessionFileDescriptor):
-    printf("SERVER::Closing the connection with client...\n");
-    close(sessionFileDescriptor);
-
     printf("SERVER::Closing the server connection...\n");
     close(socketFileDescriptor);
     return 0;
