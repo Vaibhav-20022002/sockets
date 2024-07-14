@@ -80,7 +80,7 @@ int main() {
 
     // CREATING A CLIENT (ASSIGNING SOCKET AND ADDRESS):
     struct sockaddr_in clientAddress;
-    int len = sizeof(clientAddress);
+    socklen_t len = sizeof(clientAddress);
 
     // 'accept()' SYSTEM CALL MAKE SERVER ABLE TO ACCEPT THE NEW CLIENT CONNECTIONS
     // SYNTAX: 'int accept(int sock_fd, struct sockaddr *clientAddress, socklen_t *client)'

@@ -1,5 +1,7 @@
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>     // For 'waitpid()'
 #include <netinet/in.h>   // For 'struct sockaddr_in'
 #include <sys/socket.h>   // For socket functions and definitions
 #include <arpa/inet.h>    // For inet_ntoa() functions and definitions
@@ -34,6 +36,7 @@ void handleClientConnections(int clientSockectFileDescriptor) {
     perror("SERVER::Error in writing to client...");
     close(clientSockectFileDescriptor);
     // EXITING THE CHILD PROCES WITH THE STATUS CODE '1' AS ERROR HAS OCCURED:
+    // NOTE: 'return' can't be used instead of 'exit()' as return can leave the child process orphan and the child process cannot not be monitored anymore by the parent process!!!
     exit(1);
   }
   printf("SERVER::Sent data to the client\n");
@@ -41,11 +44,28 @@ void handleClientConnections(int clientSockectFileDescriptor) {
   // COMMUNICATION IS ENDED SO CLOSING THE CURRENT CLIENT(ONE WITH sessionFileDescriptor):
   printf("SERVER::Closing the connection with client...\n");
   close(clientSockectFileDescriptor);
-
-  // EXITING THE CHILD PROCESS WITH THE SUCCESS STATUS CODE '0' AS COMUNICATION HAS COMPLETED SUCCESSFULLY:
-  // NOTE: 'return' can't be used instead of 'exit()' as return can leave the child process orphan and the child process cannot not be monitored anymore by the parent process!!!
-  exit(0);
 }
+
+// NEEDS TO COLLECT THE EXIT STATUS OF THE TERMINATED CHILD PROCESS:
+void handleChildSignal(int sig) {
+    // WAIT FOR ALL TERMINATED CHILD PROCESSESS
+
+    // THE 'waitpid(pid_t pid, int *status, int options)' SYSTEM CALL IS USED FOR SPECIFIC CHILD PREOCESSES TO TERMINATE AND RETRIEVE ITS TERMINATION STATUS
+    // HERE, 'pid' : PID OF THE CHILD PREOCESS OF ONE WANT TO WAIT FOR.
+    //      # IT HAS FOLLOWING OPTIONS:
+    //          - '> 0' : WAIT FOR THE CHILD PROCESS WITY SPECIFIED PID.
+    //          - '0' : WAIT FOR ANY CHILD PROCESS IN THE SAME PROCESS GROUP AS THE CALLER.
+    //          - '-1' : WAIT FOR ANY CHILD PROCESS.
+    // HERE, '*status' : POINTER TO AN INTEGER WHERE THE EXIT STATUS OF THE CHILD PROCESS WILL BE STORED.
+    // HERE, 'options' : ADDITIONAL OPTIONS THAT CONTROL THE BEHAVIOUR OF 'waitpid()'. COMMON OPTIONS INCLUDE -
+    //                   - 'WNOHANG' [NON-BLOCKING NATURE FOR 'waitpid()']
+    //                   - 'WUNTRACED' [REPORT STOPPED PROCESSES], ETC...
+    // RETURNS, PID OF THE TERMINATED CHILD PROCESS IF SUCCESS, OR '-1' ON ERROR/FAILURE.
+    int status;
+    waitpid(-1, &status, 0);
+    printf("SERVER::Handling child signal and the exit status is %d\n", status);
+}
+
 int main() {
     // SOCKET FILE DESCRIPTOR IS AN INTEGER ASSOCIATED WITH AN OPEN FILE:
     int socketFileDescriptor = -1;
@@ -119,9 +139,9 @@ int main() {
     }
     printf("SERVER::Listening to new connections...\n");
 
-    // CREATING A CLIENT (ASSIGNING SOCKET AND ADDRESS):
-    struct sockaddr_in clientAddress;
-    int len = sizeof(clientAddress);
+    // SETTING UP SIGNAL HANDLER FOR CHILD SIGNALS :
+    // NOTE: WHENEVER 'SIGCHLD' IS RECIEVED/CATCHED BY PARENT, IT SUSPENDS THE ACTUAL FLOW OF EXECUTION AND THEN IT CALLS 'handleChildSignal' AND THEN RESUMES ITS FLOW !!!
+    signal(SIGCHLD, handleChildSignal);
 
     // 'accept()' SYSTEM CALL MAKE SERVER ABLE TO ACCEPT THE NEW CLIENT CONNECTIONS
     // SYNTAX: 'int accept(int sock_fd, struct sockaddr *clientAddress, socklen_t *client)'
@@ -131,6 +151,10 @@ int main() {
     // RETURNS (small integer) FILE DESCRIPTOR FOR THE CLIENT (KNOWN AS SESSION_FILE_DESCRIPTOR) ON SUCCESS OTHERWISE '-1' ON ERROR
     // NOTE: 'accept()' SYSTEM CALL TAKES THE FIRST CONNECTION OFF THE QUEUE FOR sockfd AND CREATE A NEW SOCKET(NEW SOCKET_FILE_DESCRIPTOR) FOR COMMUNICATING WITH THE CLIENT !!!
     while (1) {
+        // CREATING A CLIENT (ASSIGNING SOCKET AND ADDRESS):
+        struct sockaddr_in clientAddress;
+        socklen_t len = sizeof(clientAddress);
+
         int sessionFileDescriptor = accept(socketFileDescriptor, (struct sockaddr*) &clientAddress, &len);
         if (sessionFileDescriptor < 0) {
             perror("SERVER::Accept for new connection failed\n");
@@ -157,6 +181,11 @@ int main() {
 
           // CHILD PROCESS CALLS THIS FUNCTION TO HANDLE THE CLIENT CONNECTIONS:
           handleClientConnections(sessionFileDescriptor);
+
+          // TERMINATING THE CHILD PROCESS :
+          exit(0);
+
+          // HERE, OS AUTOMATICALLY GENERATES 'SIGCHLD' SIGNAL AND SENDS IT TO THE PARENT PROCESS:
         }
 
         // PROCESSING PARENT'S JOBS:
